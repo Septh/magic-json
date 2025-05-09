@@ -1,0 +1,27 @@
+{
+  "name": "magic-json",
+  "version": "0.0.1",
+  "description": "Parse and stringify JSON strings and files, preserving indentation and line endings.",
+  "author": "Stephan 'Septh' Schreiber <septh@sfr.fr> (https://github.com/Septh)",
+  "license": "MIT",
+  "keywords": [
+    "json", "parse", "stringify", "indentation"
+  ],
+  "type": "module",
+  "main": "./lib/magic-json.js",
+  "types": "./lib/magic-json.d.ts",
+  "files": [
+    "lib/magic-json.js",
+    "lib/magic-json.d.ts"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "tsc -b --clean"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.16",
+    "rimraf": "^6.0.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.3"
+  }
+}

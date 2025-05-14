@@ -11,7 +11,26 @@ export default abstract class MagicJSON {
 
     static readonly #meta = Symbol()
 
-    /** Converts a JavaScript Object Notation (JSON) string into an object. */
+    // Gets the Metadata associated with the object, if it exists.
+    static #getMetadata(value: any): Metadata | undefined {
+        return typeof value === 'object' ? value?.[this.#meta] : undefined
+    }
+
+    // Adds a hidden (non-enumerable, non-writable, non-configurable) Metadata property to the object.
+    static #setMetadata(value: any, meta: Metadata): any {
+        return Object.defineProperty(value, this.#meta, { value: meta })
+    }
+
+    /**
+     * Checks if `value` is a MagicJSON object.
+     */
+    static isManaged(value: any): boolean {
+        return !!this.#getMetadata(value)
+    }
+
+    /**
+     * Converts a JavaScript Object Notation (JSON) string into an object.
+     */
     static parse(text: string, reviver?: (this: any, key: string, value: any) => any): any {
 
         // Parse first, in case it throws.
@@ -21,7 +40,7 @@ export default abstract class MagicJSON {
         const indents: Record<string, number> = Object.create(null)
         let lfCount = 0,
             crlfCount = 0,
-            finalEol = false
+            hasFinalEol = false
         for (
             let pos = 0, end = text.length - 1,     // Loop limits
                 eol: number,                        // Position of next \n in string
@@ -44,69 +63,64 @@ export default abstract class MagicJSON {
                     line = text.slice(pos, eol)
                 }
                 if (eol === end)
-                    finalEol = true
+                    hasFinalEol = true
             }
             else {
                 eol = end
                 line = text.slice(pos)
             }
 
-            // Ignore empty lines.
-            if (!line) continue
-
             // Get the indent string and store its usage count.
-            const indent = /^( +|\t+)/.exec(line)?.[1]
-            if (indent) {
-                if (indent === previous) {
-                    // Same indentation, reuse key from previous iteration.
-                    indents[key]++
-                }
-                else if (indent[0] === previous[0]) {
-                    // Same indentation type, different length.
-                    key = line.slice(0, Math.abs(indent.length - previous.length))
-                    indents[key] = (indents[key] ?? 0) + 1
-                }
-                else {
-                    // Different indentation.
-                    key = indent
-                    indents[key] = (indents[key] ?? 0) + 1
-                }
+            if (line.length) {
+                const indent = /^( +|\t+)/.exec(line)?.[1]
+                if (indent) {
+                    if (indent === previous) {
+                        // Same indentation, reuse key from previous iteration.
+                        indents[key]++
+                    }
+                    else if (indent[0] === previous[0]) {
+                        // Same indentation type, different length.
+                        key = line.slice(0, Math.abs(indent.length - previous.length))
+                        indents[key] = (indents[key] ?? 0) + 1
+                    }
+                    else {
+                        // Different indentation.
+                        key = indent
+                        indents[key] = (indents[key] ?? 0) + 1
+                    }
 
-                previous = indent
+                    previous = indent
+                }
+                else previous = ''
             }
-            else previous = ''
         }
 
         // Find the most frequently used.
         let indent: string | undefined = undefined,
             max = 0
         for (const key in indents) {
-            const count = indents[key]
-            if (count > max) {
+            const used = indents[key]
+            if (used > max) {
+                max = used
                 indent = key
-                max = count
             }
         }
 
         // Store the metadata.
-        return Object.defineProperty(json, MagicJSON.#meta, {
-            value: {
-                indent,
-                crlf: crlfCount > lfCount,
-                eof: finalEol
-            } satisfies Metadata
-        })
+        return this.#setMetadata(json, { indent, crlf: crlfCount > lfCount, eof: hasFinalEol })
     }
 
-    /** Converts a JavaScript value to a JavaScript Object Notation (JSON) string. */
+    /**
+     * Converts a JavaScript value to a JavaScript Object Notation (JSON) string.
+     *
+     * Works as `JSON.stringify()` if `value` is not a MagicJSON object.
+     *
+     * If `value` *is* a MagicJSON object and `space` is given, it overrides the detected indentation.
+     */
     static stringify(value: any, replacer?: (this: any, key: string, value: any) => any, space?: string | number): string {
 
         // Get the metadata, if present.
-        const { indent, crlf, eof } = (
-            typeof value === 'object' && value !== null
-                ? value[MagicJSON.#meta] as Metadata | undefined
-                : undefined
-        ) ?? { indent: undefined, crlf: false, eof: false } satisfies Metadata
+        const { indent, crlf, eof } = this.#getMetadata(value) ?? { indent: undefined, crlf: false, eof: false } satisfies Metadata
 
         // Stringify, update and return the text.
         let text = JSON.stringify(value, replacer, space ?? indent)
@@ -115,26 +129,29 @@ export default abstract class MagicJSON {
         return text
     }
 
-    /** Reads and converts a JSON file into an object. */
+    /**
+     * Reads and converts a JSON file into an object.
+     */
     static async fromFile(filepath: string): Promise<any> {
         const text = await fs.readFile(filepath, 'utf-8')
-        const json = MagicJSON.parse(text)
-        const meta = json[this.#meta] as Metadata
+        const json = this.parse(text)
+        const meta = this.#getMetadata(json)!
         meta.filepath = filepath
         return json
     }
 
-    /** Rewrites a JavaScript value to the JSON file it was loaded from. */
+    /**
+     * Rewrites a JavaScript value back to the JSON file it was loaded from.
+     *
+     * if `value` is a MagicJSON object and `filepath` is given, it overrides the path associated with the object.
+     *
+     * If `value` is *not* a MagicJSON object, `filepath` is mandatory.
+     */
     static async write(value: any, filepath?: string): Promise<void> {
-        if (typeof value === 'object' && value !== null) {
-            const meta = value[this.#meta] as Metadata | undefined
-            filepath ??= meta?.filepath
-        }
-
+        filepath ??= this.#getMetadata(value)?.filepath
         if (typeof filepath !== 'string')
-            throw new TypeError('Filepath missing')
-
-        await fs.writeFile(filepath, MagicJSON.stringify(value))
+            throw new TypeError(`value is not a ${MagicJSON.name} object and no filepath was given`)
+        await fs.writeFile(filepath, this.stringify(value))
     }
 
     // Disallow instantiating the class.

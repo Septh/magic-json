@@ -15,7 +15,7 @@ const revived = MagicJSON.stringify(data)
 * `.parse()` will attach an additional non-enumerable, non-writable, non-configurable, property to the returned object that contains metadata about the text's indentation (space or tab, width) and line endings (LF or CRLF).
 * `.stringify()` will use this metadata to recreate a string that is as close as possible to the original.
 
-The main use case is to load/edit/save JSON files like `package.json` in a lossless-ish way.
+The primary use case is to load/edit/save JSON files like `package.json` in a lossless-ish way.
 
 ## API
 

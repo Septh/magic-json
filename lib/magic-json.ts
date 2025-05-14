@@ -33,8 +33,10 @@ export default abstract class MagicJSON {
      */
     static parse(text: string, reviver?: (this: any, key: string, value: any) => any): any {
 
-        // Parse first, in case it throws.
+        // Parse first, in case it throws or the result is not an object.
         const json = JSON.parse(text, reviver)
+        if (typeof json !== 'object' || json === null)
+            return json
 
         // Detect indentation and line endings.
         const indents: Record<string, number> = Object.create(null)
@@ -135,8 +137,9 @@ export default abstract class MagicJSON {
     static async fromFile(filepath: string): Promise<any> {
         const text = await fs.readFile(filepath, 'utf-8')
         const json = this.parse(text)
-        const meta = this.#getMetadata(json)!
-        meta.filepath = filepath
+        const meta = this.#getMetadata(json)
+        if (meta)
+            meta.filepath = filepath
         return json
     }
 

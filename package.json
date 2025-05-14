@@ -10,6 +10,21 @@
     "stringify",
     "indentation"
   ],
+  "homepage": "https://github.com/Septh/magic-json#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Septh/magic-json"
+  },
+  "funding": [
+    {
+      "type": "patreon",
+      "url": "https://patreon.com/Septh"
+    },
+    {
+      "type": "paypal",
+      "url": "https://paypal.me/septh07"
+    }
+  ],
   "type": "module",
   "main": "./lib/magic-json.js",
   "types": "./lib/magic-json.d.ts",

@@ -58,7 +58,7 @@ MagicJSON.write(pkg)
 ```
 
 
-#### `isManaged(value: any): boolean`
+#### `MagicJSON.isManaged(value: any): boolean`
 Returns `true` if `value` is a MagicJSON object, `false` otherwise.
 
 ## License

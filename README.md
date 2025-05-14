@@ -29,7 +29,7 @@ This API has the same signature as `JSON.stringify()`, which it calls under the 
 Reads JSON from a file and calls `parse()`.
 
 #### `async write(value: any, filepath?: string): Promise<void>`
-Calls `stringify()` and writes the result to the same file the JSON text was loaded from, unless a different `filpath` is given.
+Calls `stringify()` and writes the result to the same file the JSON text was loaded from, unless a different `filepath` is given.
 
 ```ts
 import MagicJSON from 'magic-json'

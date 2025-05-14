@@ -146,9 +146,10 @@ export default abstract class MagicJSON {
     /**
      * Rewrites a JavaScript value back to the JSON file it was loaded from.
      *
-     * if `value` is a MagicJSON object and `filepath` is given, it overrides the path associated with the object.
+     * If `filepath` is given, it overrides the path associated with the object.
      *
-     * If `value` is *not* a MagicJSON object, `filepath` is mandatory.
+     * `filepath` is mandatory if either `value` is not a MagicJSON object or it wasn't
+     * loaded with `.fromFile()`.
      */
     static async write(value: any, filepath?: string): Promise<void> {
         filepath ??= this.#getMetadata(value)?.filepath

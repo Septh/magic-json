@@ -160,6 +160,6 @@ export default abstract class MagicJSON {
 
     // Disallow instantiating the class.
     /** @internal */constructor(...args: any[]) {
-        throw new TypeError(`Cannont instantiate ${MagicJSON.name}`)
+        throw new TypeError(`Can't instantiate ${MagicJSON.name}`)
     }
 }

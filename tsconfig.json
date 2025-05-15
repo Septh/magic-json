@@ -1,13 +1,15 @@
 {
   "include": [
-    "lib"
+    "source"
   ],
   "compilerOptions": {
 
     // Input
+    "rootDir": "source",
     "resolveJsonModule": true,
 
     // Output
+    "outDir": "lib",
     "target": "ESNext",
     "removeComments": false,
     "preserveConstEnums": false,

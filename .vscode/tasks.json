@@ -1,34 +1,34 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "clean",
-			"type": "npm",
-			"script": "clean",
-			"presentation": {
-				"reveal": "silent"
-			}
-		},
-		{
-			"label": "tsc: watch - tsconfig.json",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"presentation": {
-				"reveal": "silent"
-			},
-			"type": "typescript",
-			"tsconfig": "tsconfig.json",
-			"option": "watch",
-			"problemMatcher": [
-				"$tsc-watch"
-			],
-			"dependsOn": "clean",
-			"dependsOrder": "sequence",
-			"runOptions": {
-				"runOn": "folderOpen"
-			}
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "clean",
+      "type": "npm",
+      "script": "clean",
+      "presentation": {
+        "reveal": "silent",
+      }
+    },
+    {
+      "label": "tsc: watch - tsconfig.json",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "silent"
+      },
+      "type": "typescript",
+      "tsconfig": "tsconfig.json",
+      "option": "watch",
+      "problemMatcher": [
+        "$tsc-watch"
+      ],
+      "dependsOn":[ "clean" ],
+      "dependsOrder": "sequence",
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
 }

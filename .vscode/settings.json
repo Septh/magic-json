@@ -1,3 +1,13 @@
 {
-  "typescript.tsdk": "node_modules\\typescript\\lib"
+  "typescript.tsdk": "node_modules\\typescript\\lib",
+  "nodejs-testing.extensions": [
+    {
+      "extensions": [ "js", "mjs", "cjs" ],
+      "parameters": []
+    },
+    {
+      "extensions": [ "ts", "mts", "cts" ],
+      "parameters": [ "--experimental-strip-types" ]
+    }
+  ]
 }

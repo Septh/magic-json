@@ -1,7 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { deprecate } from 'node:util'
 
-interface Metadata {
+/** @internal */
+export interface Metadata {
     indentString: string | undefined    // The guessed indentation string
     useCRLF: boolean                    // Use CRLF rather than LF for line endings
     hasFinalEol: boolean                // The text has a final EOL

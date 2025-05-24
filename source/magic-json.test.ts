@@ -1,21 +1,14 @@
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
-import MJ from './magic-json.js'
+import MJ, { type Metadata } from './magic-json.js'
 
-interface Metadata {
-    indent: string | undefined
-    crlf: boolean
-    eof: boolean
-    filepath?: string
-}
-
-type IndentPattern = [ indent: string, description: string, eol: string ]
+type IndentationPattern = [ indent: string, description: string, eol: string ]
 
 /**
- * Turns an array of indent patterns into a proper JSON string
+ * Turns an array of indentation patterns into a proper JSON string
  * that can be passed to `MagicJSON.parse()`.
  */
-function toJson(patterns: IndentPattern[], open = '\n', close = open): string {
+function toJson(patterns: IndentationPattern[], open = '\n', close = open): string {
     const last = patterns.length - 1
     return [
         '{' + open,
@@ -43,7 +36,7 @@ function parse(text: string): {obj: any, meta: Metadata } {
 describe('Indentation', () => {
 
     test('detect regular space indent', () => {
-        const indents: IndentPattern[] = [
+        const indents: IndentationPattern[] = [
             [ '  ',     '2 spaces', '\n' ],
             [ '    ',   '4 spaces', '\n' ],
             [ '      ', '6 spaces', '\n' ],
@@ -51,11 +44,11 @@ describe('Indentation', () => {
             [ '  ',     '2 spaces', '\n' ],
         ]
         const { meta } = parse(toJson(indents))
-        assert.equal(meta.indent, '  ')
+        assert.equal(meta.indentString, '  ')
     })
 
     test('detect regular tab indent', () => {
-        const indents: IndentPattern[] = [
+        const indents: IndentationPattern[] = [
             [ '\t',     '1 tab',  '\n' ],
             [ '\t\t',   '2 tabs', '\n' ],
             [ '\t\t\t', '3 tabs', '\n' ],
@@ -63,43 +56,43 @@ describe('Indentation', () => {
             [ '\t',     '1 tab',  '\n' ],
         ]
         const { meta } = parse(toJson(indents))
-        assert.equal(meta.indent, '\t')
+        assert.equal(meta.indentString, '\t')
     })
 
-    test('detect more space than tab as space', () => {
-        const indents: IndentPattern[] = [
+    test('detect more spaces than tabs as space indent', () => {
+        const indents: IndentationPattern[] = [
             [ '  ',   '2 spaces', '\n' ],
             [ '    ', '4 spaces', '\n' ],
             [ '\t',   '1 tab',    '\n' ],
         ]
         const { meta } = parse(toJson(indents))
-        assert.equal(meta.indent, '  ')
+        assert.equal(meta.indentString, '  ')
     })
 
-    test('detect more tab than space as tab', () => {
-        const indents: IndentPattern[] = [
+    test('detect more tabs than spaces as tab indent', () => {
+        const indents: IndentationPattern[] = [
             [ '\t',   '1 tab',    '\n' ],
             [ '\t\t', '1 tab',    '\n' ],
             [ '  ',   '2 spaces', '\n' ],
         ]
         const { meta } = parse(toJson(indents))
-        assert.equal(meta.indent, '\t')
+        assert.equal(meta.indentString, '\t')
     })
 
     test('detect no indent', () => {
-        const indents: IndentPattern[] = [
+        const indents: IndentationPattern[] = [
             [ '', 'no indent', '\n' ],
             [ '', 'no indent', '\n' ],
         ]
         const { meta } = parse(toJson(indents))
-        assert.equal(meta.indent, undefined)
+        assert.equal(meta.indentString, undefined)
     })
 })
 
 describe('Line endings', () => {
 
     test('detect regular LF line endings', () => {
-        const indents: IndentPattern[] = [
+        const indents: IndentationPattern[] = [
             [ '  ', 'LF ending', '\n' ],
             [ '  ', 'LF ending', '\n' ],
             [ '  ', 'LF ending', '\n' ],
@@ -107,11 +100,11 @@ describe('Line endings', () => {
             [ '  ', 'LF ending', '\n' ],
         ]
         const { meta } = parse(toJson(indents))
-        assert.equal(meta.crlf, false)
+        assert.equal(meta.useCRLF, false)
     })
 
     test('detect regular CRLF line endings', () => {
-        const indents: IndentPattern[] = [
+        const indents: IndentationPattern[] = [
             [ '  ', 'CRLF ending', '\r\n' ],
             [ '  ', 'CRLF ending', '\r\n' ],
             [ '  ', 'CRLF ending', '\r\n' ],
@@ -119,16 +112,16 @@ describe('Line endings', () => {
             [ '  ', 'CRLF ending', '\r\n' ],
         ]
         const { meta } = parse(toJson(indents, '\r\n'))
-        assert.equal(meta.crlf, true)
+        assert.equal(meta.useCRLF, true)
     })
 
     test('detect mixed LF and CRLF line endings', () => {
-        const indents: IndentPattern[] = [
+        const indents: IndentationPattern[] = [
             [ '  ', 'CRLF ending', '\r\n' ],
             [ '  ', 'LF ending',   '\n'   ],
             [ '  ', 'CRLF ending', '\r\n' ],
         ]
         const { meta } = parse(toJson(indents, '\r\n'))
-        assert.equal(meta.crlf, true)
+        assert.equal(meta.useCRLF, true)
     })
 })

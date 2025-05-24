@@ -1,10 +1,11 @@
-import fs from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
+import { deprecate } from 'node:util'
 
 interface Metadata {
-    indent: string | undefined  // The guessed indentation string
-    crlf: boolean               // Use CRLF rather than LF for line endings
-    eof: boolean                // The text has a final EOL
-    filepath?: string           // The name of the file the text was loaded from
+    indentString: string | undefined    // The guessed indentation string
+    useCRLF: boolean                    // Use CRLF rather than LF for line endings
+    hasFinalEol: boolean                // The text has a final EOL
+    filepath?: string                   // The path to the file the text was loaded from
 }
 
 export default abstract class MagicJSON {
@@ -13,7 +14,7 @@ export default abstract class MagicJSON {
 
     // Gets the Metadata associated with the object, if it exists.
     static #getMetadata(value: any): Metadata | undefined {
-        return typeof value === 'object' ? value?.[this.#meta] : undefined
+        return value && typeof value === 'object' ? value[this.#meta] : undefined
     }
 
     // Adds a hidden (non-enumerable, non-writable, non-configurable) Metadata property to the object.
@@ -24,9 +25,12 @@ export default abstract class MagicJSON {
     /**
      * Checks if `value` is a MagicJSON object.
      */
-    static isManaged(value: any): boolean {
+    static isMagic(value: any): boolean {
         return !!this.#getMetadata(value)
     }
+
+    /** @deprecated Use MagicJSON.isMagic() instead. */
+    static isManaged = deprecate((value: any) => this.isMagic(value), 'MagicJSON.isManaged() is deprecated, please use MagicJSON.isMagic() instead.')
 
     /**
      * Converts a JavaScript Object Notation (JSON) string into an object.
@@ -39,77 +43,76 @@ export default abstract class MagicJSON {
             return json
 
         // Detect indentation and line endings.
-        const indents: Record<string, number> = Object.create(null)
+        const indents: Record<string, number> = {}
         let lfCount = 0,
-            crlfCount = 0,
+            crCount = 0,
             hasFinalEol = false
         for (
             let pos = 0, end = text.length - 1,     // Loop limits
-                eol: number,                        // Position of next \n in string
+                nextEol: number,                    // Position of next \n in string
                 line: string,                       // Current line
-                previous = '',                      // Previous line's indent
+                previousIndent = '',                // Previous line indent
                 key = '';
             pos <= end;
-            pos = eol + 1
+            pos = nextEol + 1
         ) {
 
             // Get next line.
-            eol = text.indexOf('\n', pos)
-            if (eol >= 0) {
-                if (text.charCodeAt(eol - 1) === 13) {
-                    crlfCount++
-                    line = text.slice(pos, eol - 1)
+            nextEol = text.indexOf('\n', pos)
+            if (nextEol >= 0) {
+                if (text.charCodeAt(nextEol - 1) === 13) {
+                    crCount++
+                    line = text.slice(pos, nextEol - 1)
                 }
                 else {
                     lfCount++
-                    line = text.slice(pos, eol)
+                    line = text.slice(pos, nextEol)
                 }
-                if (eol === end)
+                if (nextEol === end)
                     hasFinalEol = true
             }
             else {
-                eol = end
+                nextEol = end
                 line = text.slice(pos)
             }
 
             // Get the indent string and store its usage count.
             if (line.length) {
-                const indent = /^( +|\t+)/.exec(line)?.[1]
-                if (indent) {
-                    if (indent === previous) {
-                        // Same indentation, reuse key from previous iteration.
+                const lineIndent = /^( +|\t+)/.exec(line)?.[1]
+                if (lineIndent) {
+                    if (lineIndent === previousIndent) {
+                        // Same indentation, increment use count (reusing key from previous iteration).
                         indents[key]++
                     }
-                    else if (indent[0] === previous[0]) {
+                    else if (lineIndent[0] === previousIndent[0]) {
                         // Same indentation type, different length.
-                        key = line.slice(0, Math.abs(indent.length - previous.length))
+                        key = line.slice(0, Math.abs(lineIndent.length - previousIndent.length))
                         indents[key] = (indents[key] ?? 0) + 1
                     }
                     else {
                         // Different indentation.
-                        key = indent
+                        key = lineIndent
                         indents[key] = (indents[key] ?? 0) + 1
                     }
-
-                    previous = indent
+                    previousIndent = lineIndent
                 }
-                else previous = ''
+                else previousIndent = ''
             }
         }
 
         // Find the most frequently used.
-        let indent: string | undefined = undefined,
+        let indentString: string | undefined = undefined,
             max = 0
         for (const key in indents) {
             const used = indents[key]
             if (used > max) {
                 max = used
-                indent = key
+                indentString = key
             }
         }
 
         // Store the metadata.
-        return this.#setMetadata(json, { indent, crlf: crlfCount > lfCount, eof: hasFinalEol })
+        return this.#setMetadata(json, { indentString, useCRLF: crCount > lfCount, hasFinalEol })
     }
 
     /**
@@ -122,12 +125,14 @@ export default abstract class MagicJSON {
     static stringify(value: any, replacer?: (this: any, key: string, value: any) => any, space?: string | number): string {
 
         // Get the metadata, if present.
-        const { indent, crlf, eof } = this.#getMetadata(value) ?? { indent: undefined, crlf: false, eof: false } satisfies Metadata
+        const { indentString, useCRLF, hasFinalEol } = this.#getMetadata(value) ?? { indentString: undefined, useCRLF: false, hasFinalEol: false } satisfies Metadata
 
         // Stringify, update and return the text.
-        let text = JSON.stringify(value, replacer, space ?? indent)
-        if (eof) text += '\n'
-        if (crlf) text = text.replaceAll('\n', '\r\n')
+        let text = JSON.stringify(value, replacer, space ?? indentString)
+        if (hasFinalEol)
+            text += '\n'
+        if (useCRLF)
+            text = text.replaceAll('\n', '\r\n')
         return text
     }
 
@@ -135,7 +140,7 @@ export default abstract class MagicJSON {
      * Reads and converts a JSON file into an object.
      */
     static async fromFile(filepath: string): Promise<any> {
-        const text = await fs.readFile(filepath, 'utf-8')
+        const text = await readFile(filepath).then(buffer => buffer.toString())
         const json = this.parse(text)
         const meta = this.#getMetadata(json)
         if (meta)
@@ -155,7 +160,7 @@ export default abstract class MagicJSON {
         filepath ??= this.#getMetadata(value)?.filepath
         if (typeof filepath !== 'string')
             throw new TypeError(`value is not a ${MagicJSON.name} object and no filepath was given`)
-        await fs.writeFile(filepath, this.stringify(value))
+        await writeFile(filepath, this.stringify(value))
     }
 
     // Disallow instantiating the class.

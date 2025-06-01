@@ -4,34 +4,57 @@ import { deprecate } from 'node:util'
 /** @internal */
 export interface Metadata {
     indentString: string | undefined    // The guessed indentation string
-    useCRLF: boolean                    // Use CRLF rather than LF for line endings
+    useCRLF: boolean                    // The text uses CRLF rather than LF for line endings
     hasFinalEol: boolean                // The text has a final EOL
     filepath?: string                   // The path to the file the text was loaded from
 }
 
 export default abstract class MagicJSON {
 
-    static readonly #meta = Symbol()
+    static readonly #refsMap = new WeakMap<any, Metadata>()
 
-    // Gets the Metadata associated with the object, if it exists.
-    static #getMetadata(value: any): Metadata | undefined {
-        return value && typeof value === 'object' ? value[this.#meta] : undefined
-    }
-
-    // Adds a hidden (non-enumerable, non-writable, non-configurable) Metadata property to the object.
-    static #setMetadata(value: any, meta: Metadata): any {
-        return Object.defineProperty(value, this.#meta, { value: meta })
+    /** @internal Gets the Metadata associated with the object, if it exists. */
+    static getMetadata(value: any): Readonly<Metadata> | undefined {
+        const meta = this.#refsMap.get(value)
+        return meta && Object.freeze(meta)
     }
 
     /**
      * Checks if `value` is a MagicJSON object.
      */
     static isMagic(value: any): boolean {
-        return !!this.#getMetadata(value)
+        return this.#refsMap.has(value)
     }
 
     /** @deprecated Use MagicJSON.isMagic() instead. */
     static isManaged = deprecate((value: any) => this.isMagic(value), 'MagicJSON.isManaged() is deprecated, please use MagicJSON.isMagic() instead.')
+
+    /**
+     * Reads and converts a JSON file into an object.
+     */
+    static async fromFile(filepath: string): Promise<any> {
+        const text = await readFile(filepath).then(buffer => buffer.toString())
+        const json = this.parse(text)
+        const meta = this.#refsMap.get(json)
+        if (meta)
+            meta.filepath = filepath
+        return json
+    }
+
+    /**
+     * Rewrites a JavaScript value back to the JSON file it was loaded from.
+     *
+     * If `filepath` is given, it overrides the path associated with the object.
+     *
+     * `filepath` is mandatory if either `value` is not a MagicJSON object or it wasn't
+     * loaded with `.fromFile()`.
+     */
+    static async write(value: any, filepath?: string): Promise<void> {
+        filepath ??= this.#refsMap.get(value)?.filepath
+        if (typeof filepath !== 'string')
+            throw new TypeError(`value is not a ${MagicJSON.name} object and filepath argument was not given`)
+        await writeFile(filepath, this.stringify(value))
+    }
 
     /**
      * Converts a JavaScript Object Notation (JSON) string into an object.
@@ -113,7 +136,8 @@ export default abstract class MagicJSON {
         }
 
         // Store the metadata.
-        return this.#setMetadata(json, { indentString, useCRLF: crCount > lfCount, hasFinalEol })
+        this.#refsMap.set(json, { indentString, useCRLF: crCount > lfCount, hasFinalEol })
+        return json
     }
 
     /**
@@ -126,7 +150,7 @@ export default abstract class MagicJSON {
     static stringify(value: any, replacer?: (this: any, key: string, value: any) => any, space?: string | number): string {
 
         // Get the metadata, if present.
-        const { indentString, useCRLF, hasFinalEol } = this.#getMetadata(value) ?? { indentString: undefined, useCRLF: false, hasFinalEol: false } satisfies Metadata
+        const { indentString, useCRLF, hasFinalEol } = this.#refsMap.get(value) ?? { indentString: undefined, useCRLF: false, hasFinalEol: false } satisfies Metadata
 
         // Stringify, update and return the text.
         let text = JSON.stringify(value, replacer, space ?? indentString)
@@ -135,33 +159,6 @@ export default abstract class MagicJSON {
         if (useCRLF)
             text = text.replaceAll('\n', '\r\n')
         return text
-    }
-
-    /**
-     * Reads and converts a JSON file into an object.
-     */
-    static async fromFile(filepath: string): Promise<any> {
-        const text = await readFile(filepath).then(buffer => buffer.toString())
-        const json = this.parse(text)
-        const meta = this.#getMetadata(json)
-        if (meta)
-            meta.filepath = filepath
-        return json
-    }
-
-    /**
-     * Rewrites a JavaScript value back to the JSON file it was loaded from.
-     *
-     * If `filepath` is given, it overrides the path associated with the object.
-     *
-     * `filepath` is mandatory if either `value` is not a MagicJSON object or it wasn't
-     * loaded with `.fromFile()`.
-     */
-    static async write(value: any, filepath?: string): Promise<void> {
-        filepath ??= this.#getMetadata(value)?.filepath
-        if (typeof filepath !== 'string')
-            throw new TypeError(`value is not a ${MagicJSON.name} object and no filepath was given`)
-        await writeFile(filepath, this.stringify(value))
     }
 
     // Disallow instantiating the class.

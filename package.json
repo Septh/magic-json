@@ -35,7 +35,7 @@
   "scripts": {
     "clean": "rimraf lib",
     "build": "tsc",
-    "test": "tsc && node --test lib/*.test.js",
+    "test": "tsc && node --no-warnings --test lib/*.test.js",
     "testOnly": "node --test lib/*.test.js"
   },
   "devDependencies": {

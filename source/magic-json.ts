@@ -13,10 +13,13 @@ export default abstract class MagicJSON {
 
     static readonly #metas = new WeakMap<any, Metadata>()
 
-    /** @internal Gets the Metadata associated with the object, if it exists. */
-    static getMetadata(value: any): Readonly<Metadata> | undefined {
-        const meta = this.#metas.get(value)
-        return meta && Object.freeze(meta)
+    /**
+     * Gets the Metadata associated with the object, if it exists.
+     *
+     * @internal For tests only.
+     */
+    private static getMetadata(value: any): Readonly<Metadata> | undefined {
+        return this.#metas.get(value)
     }
 
     /**
@@ -26,7 +29,9 @@ export default abstract class MagicJSON {
         return this.#metas.has(value)
     }
 
-    /** @deprecated Use MagicJSON.isMagic() instead. */
+    /**
+     * @deprecated Use MagicJSON.isMagic() instead.
+     */
     static isManaged = deprecate((value: any) => this.isMagic(value), 'MagicJSON.isManaged() is deprecated, please use MagicJSON.isMagic() instead.')
 
     /**
@@ -135,7 +140,7 @@ export default abstract class MagicJSON {
             }
 
             // Store the metadata.
-            this.#metas.set(json, { indentString, useCRLF: crCount > lfCount, hasFinalEol })
+            this.#metas.set(json, { indentString, useCRLF: crCount >= lfCount, hasFinalEol })
         }
         return json
     }
@@ -163,7 +168,7 @@ export default abstract class MagicJSON {
 
     // Disallow instantiating the class.
     /** @internal */
-    constructor(...args: any[]) {
+    private constructor(...args: any[]) {
         throw new TypeError(`Can't instantiate ${MagicJSON.name}`)
     }
 }

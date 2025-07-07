@@ -11,11 +11,11 @@ export interface Metadata {
 
 export default abstract class MagicJSON {
 
-    static readonly #refsMap = new WeakMap<any, Metadata>()
+    static readonly #metas = new WeakMap<any, Metadata>()
 
     /** @internal Gets the Metadata associated with the object, if it exists. */
     static getMetadata(value: any): Readonly<Metadata> | undefined {
-        const meta = this.#refsMap.get(value)
+        const meta = this.#metas.get(value)
         return meta && Object.freeze(meta)
     }
 
@@ -23,7 +23,7 @@ export default abstract class MagicJSON {
      * Checks if `value` is a MagicJSON object.
      */
     static isMagic(value: any): boolean {
-        return this.#refsMap.has(value)
+        return this.#metas.has(value)
     }
 
     /** @deprecated Use MagicJSON.isMagic() instead. */
@@ -35,7 +35,7 @@ export default abstract class MagicJSON {
     static async fromFile(filepath: string): Promise<any> {
         const text = await readFile(filepath).then(buffer => buffer.toString())
         const json = this.parse(text)
-        const meta = this.#refsMap.get(json)
+        const meta = this.#metas.get(json)
         if (meta)
             meta.filepath = filepath
         return json
@@ -50,7 +50,7 @@ export default abstract class MagicJSON {
      * loaded with `.fromFile()`.
      */
     static async write(value: any, filepath?: string): Promise<void> {
-        filepath ??= this.#refsMap.get(value)?.filepath
+        filepath ??= this.#metas.get(value)?.filepath
         if (typeof filepath !== 'string')
             throw new TypeError(`value is not a ${MagicJSON.name} object and filepath argument was not given`)
         await writeFile(filepath, this.stringify(value))
@@ -63,80 +63,80 @@ export default abstract class MagicJSON {
 
         // Parse first, in case it throws or the result is not an object.
         const json = JSON.parse(text, reviver)
-        if (typeof json !== 'object' || json === null)
-            return json
+        if (typeof json === 'object' || json !== null) {
 
-        // Detect indentation and line endings.
-        const indents: Record<string, number> = {}
-        let lfCount = 0,
-            crCount = 0,
-            hasFinalEol = false
-        for (
-            let pos = 0, end = text.length - 1,     // Loop limits
-                nextEol: number,                    // Position of next \n in string
-                line: string,                       // Current line
-                previousIndent = '',                // Previous line indent
-                key = '';
-            pos <= end;
-            pos = nextEol + 1
-        ) {
+            // Detect indentation and line endings.
+            const indents: Record<string, number> = {}
+            let lfCount = 0,
+                crCount = 0,
+                hasFinalEol = false
+            for (
+                let pos = 0, end = text.length - 1,     // Loop limits
+                    nextEol: number,                    // Position of next \n in string
+                    line: string,                       // Current line
+                    previousIndent = '',                // Previous line indent
+                    key = '';
+                pos <= end;
+                pos = nextEol + 1
+            ) {
 
-            // Get next line.
-            nextEol = text.indexOf('\n', pos)
-            if (nextEol >= 0) {
-                if (text.charCodeAt(nextEol - 1) === 13) {
-                    crCount++
-                    line = text.slice(pos, nextEol - 1)
-                }
-                else {
-                    lfCount++
-                    line = text.slice(pos, nextEol)
-                }
-                if (nextEol === end)
-                    hasFinalEol = true
-            }
-            else {
-                nextEol = end
-                line = text.slice(pos)
-            }
-
-            // Get the indent string and store its usage count.
-            if (line.length) {
-                const lineIndent = /^( +|\t+)/.exec(line)?.[1]
-                if (lineIndent) {
-                    if (lineIndent === previousIndent) {
-                        // Same indentation, increment use count (reusing key from previous iteration).
-                        indents[key]++
-                    }
-                    else if (lineIndent[0] === previousIndent[0]) {
-                        // Same indentation type, different length.
-                        key = line.slice(0, Math.abs(lineIndent.length - previousIndent.length))
-                        indents[key] = (indents[key] ?? 0) + 1
+                // Get next line.
+                nextEol = text.indexOf('\n', pos)
+                if (nextEol >= 0) {
+                    if (text.charCodeAt(nextEol - 1) === 13) {
+                        crCount++
+                        line = text.slice(pos, nextEol - 1)
                     }
                     else {
-                        // Different indentation.
-                        key = lineIndent
-                        indents[key] = (indents[key] ?? 0) + 1
+                        lfCount++
+                        line = text.slice(pos, nextEol)
                     }
-                    previousIndent = lineIndent
+                    if (nextEol === end)
+                        hasFinalEol = true
                 }
-                else previousIndent = ''
-            }
-        }
+                else {
+                    nextEol = end
+                    line = text.slice(pos)
+                }
 
-        // Find the most frequently used.
-        let indentString: string | undefined = undefined,
-            max = 0
-        for (const key in indents) {
-            const used = indents[key]
-            if (used > max) {
-                max = used
-                indentString = key
+                // Get the indent string and store its usage count.
+                if (line.length) {
+                    const lineIndent = /^( +|\t+)/.exec(line)?.[1]
+                    if (lineIndent) {
+                        if (lineIndent === previousIndent) {
+                            // Same indentation, increment use count (reusing key from previous iteration).
+                            indents[key]++
+                        }
+                        else if (lineIndent[0] === previousIndent[0]) {
+                            // Same indentation type, different length.
+                            key = line.slice(0, Math.abs(lineIndent.length - previousIndent.length))
+                            indents[key] = (indents[key] ?? 0) + 1
+                        }
+                        else {
+                            // Different indentation.
+                            key = lineIndent
+                            indents[key] = (indents[key] ?? 0) + 1
+                        }
+                        previousIndent = lineIndent
+                    }
+                    else previousIndent = ''
+                }
             }
-        }
 
-        // Store the metadata.
-        this.#refsMap.set(json, { indentString, useCRLF: crCount > lfCount, hasFinalEol })
+            // Find the most frequently used.
+            let indentString: string | undefined = undefined,
+                max = 0
+            for (const key in indents) {
+                const used = indents[key]
+                if (used > max) {
+                    max = used
+                    indentString = key
+                }
+            }
+
+            // Store the metadata.
+            this.#metas.set(json, { indentString, useCRLF: crCount > lfCount, hasFinalEol })
+        }
         return json
     }
 
@@ -150,19 +150,20 @@ export default abstract class MagicJSON {
     static stringify(value: any, replacer?: (this: any, key: string, value: any) => any, space?: string | number): string {
 
         // Get the metadata, if present.
-        const { indentString, useCRLF, hasFinalEol } = this.#refsMap.get(value) ?? { indentString: undefined, useCRLF: false, hasFinalEol: false } satisfies Metadata
+        const meta = this.#metas.get(value)
 
         // Stringify, update and return the text.
-        let text = JSON.stringify(value, replacer, space ?? indentString)
-        if (hasFinalEol)
+        let text = JSON.stringify(value, replacer, space ?? meta?.indentString)
+        if (meta?.hasFinalEol)
             text += '\n'
-        if (useCRLF)
+        if (meta?.useCRLF)
             text = text.replaceAll('\n', '\r\n')
         return text
     }
 
     // Disallow instantiating the class.
-    /** @internal */constructor(...args: any[]) {
+    /** @internal */
+    constructor(...args: any[]) {
         throw new TypeError(`Can't instantiate ${MagicJSON.name}`)
     }
 }

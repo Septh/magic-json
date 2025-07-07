@@ -32,7 +32,7 @@ export default abstract class MagicJSON {
     /**
      * Reads and converts a JSON file into an object.
      */
-    static async fromFile(filepath: string): Promise<any> {
+    static async fromFile<T = any>(filepath: string): Promise<T> {
         const text = await readFile(filepath).then(buffer => buffer.toString())
         const json = this.parse(text)
         const meta = this.#metas.get(json)
@@ -59,7 +59,7 @@ export default abstract class MagicJSON {
     /**
      * Converts a JavaScript Object Notation (JSON) string into an object.
      */
-    static parse(text: string, reviver?: (this: any, key: string, value: any) => any): any {
+    static parse<T = any>(text: string, reviver?: (this: any, key: string, value: any) => any): T {
 
         // Parse first, in case it throws or the result is not an object.
         const json = JSON.parse(text, reviver)

@@ -34,9 +34,11 @@
   ],
   "scripts": {
     "clean": "rimraf lib",
-    "build": "tsc",
-    "test": "tsc && node --no-warnings --test lib/*.test.js",
-    "testOnly": "node --test lib/*.test.js"
+    "prebuild": "npm run clean",
+    "build": "tsc --removeComments && tsc --emitDeclarationOnly",
+    "pretest": "npm run build",
+    "test": "npm run testOnly",
+    "testOnly": "node --no-warnings --test lib/*.test.js"
   },
   "devDependencies": {
     "@types/node": "^22.15.16",

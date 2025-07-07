@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
-import MJ, { type Metadata } from './magic-json.js'
+import json, { type Metadata } from './magic-json.js'
 
 type IndentationPattern = [ indent: string, description: string, eol: string ]
 
@@ -25,11 +25,29 @@ function toJson(patterns: IndentationPattern[], open = '\n', close = open): stri
  * Parses a JSON string with `MagicJSON.parse()` and returns the object and its metadata.
  */
 function parse(text: string): {obj: any, meta: Metadata } {
-    const obj = MJ.parse(text)
-    const meta = MJ.getMetadata(obj)
+    const obj = json.parse(text)
+    const meta = json['getMetadata'](obj)
     assert(meta)
     return { obj, meta }
 }
+
+describe('usage', () => {
+
+    test('Cannot be instantiated', () => {
+        // @ts-expect-error "ts(2673: constructor of class 'MagicJSON' is private and only accessible within the class declaration"
+        assert.throws(() => new json())
+    })
+
+    test('warn deprecations', async () => {
+        const { obj } = parse('{"foo":"bar"}')
+        const { name, message } = await new Promise<Error>((resolve, reject) => {
+            process.once('warning', warning => resolve(warning))
+            assert(json.isManaged(obj))
+        })
+        assert(/DeprecationWarning/.test(name))
+        assert(/isManaged/.test(message))
+    })
+})
 
 describe('Indentation', () => {
 
@@ -121,23 +139,5 @@ describe('Line endings', () => {
         ]
         const { meta } = parse(toJson(indents, '\r\n'))
         assert.equal(meta.useCRLF, true)
-    })
-})
-
-describe('Misc', () => {
-
-    test('metadata is frozen', () => {
-        const { meta } = parse('{"foo":"bar"}')
-        assert.throws(() => meta.indentString = 'NOPE', TypeError)
-    })
-
-    test('warn deprecations', async () => {
-        const { obj } = parse('{"foo":"bar"}')
-        const { name, message } = await new Promise<Error>((resolve, reject) => {
-            process.once('warning', warning => resolve(warning))
-            assert(MJ.isManaged(obj))
-        })
-        assert(/DeprecationWarning/.test(name))
-        assert(/isManaged/.test(message))
     })
 })

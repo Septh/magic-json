@@ -16,7 +16,8 @@ const pkg = await MagicJSON.fromFile('./package.json')
 pkg.version = '2.0.0'
 delete pkg.private
 
-// Then write it back to the same file, with the same indentation and line endings:
+// Then write it back to the same file,
+// with the same indentation and line endings:
 await MagicJSON.write(pkg)
 ```
 
@@ -30,7 +31,7 @@ MagicJSON can be used as a drop-in replacement for the JavaScript [JSON](https:/
 - This API has the same signature as `JSON.parse()`, which it calls under the hood. Once parsed, the source text is analyzed to determine the indentation and line endings. This information is then stored in an internal WeakMap.
 
 **`MagicJSON.stringify(value: any, replacer?: (this: any, key: string, value: any) => any, space?: string | number): string`**
-- This API has the same signature as `JSON.stringify()`, which it calls under the hood. It uses the information stored par `.parse()` to revive the text with the same indentation (unless the `space` parameter is given) and line endings.
+- This API has the same signature as `JSON.stringify()`, which it calls under the hood. It uses the information stored by `.parse()` to revive the text with the same indentation (unless the `space` parameter is given) and line endings.
 
 > Notes
 > - `MagicJSON.stringify()` works the same as `JSON.stringify()` if `value` is not a MagicJSON object.

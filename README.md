@@ -27,7 +27,7 @@ await MagicJSON.write(pkg)
 MagicJSON can be used as a drop-in replacement for the JavaScript [JSON](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON) API.
 
 
-**`MagicJSON.parse(text: string, reviver?: (this: any, key: string, value: any) => any): any`**
+**`MagicJSON.parse<T = any>(text: string, reviver?: (this: any, key: string, value: any) => any): T`**
 - This API has the same signature as `JSON.parse()`, which it calls under the hood. Once parsed, the source text is analyzed to determine the indentation and line endings. This information is then stored in an internal WeakMap.
 
 **`MagicJSON.stringify(value: any, replacer?: (this: any, key: string, value: any) => any, space?: string | number): string`**
@@ -37,7 +37,7 @@ MagicJSON can be used as a drop-in replacement for the JavaScript [JSON](https:/
 > - `MagicJSON.stringify()` works the same as `JSON.stringify()` if `value` is not a MagicJSON object.
 > - If `value` *is* a MagicJSON object and `space` is given, it overrides the detected indentation.
 
-**`async MagicJSON.fromFile(filepath: string): Promise<any>`**
+**`async MagicJSON.fromFile<T = any>(filepath: string): Promise<T>`**
 - Reads some JSON text from a file and calls `.parse()` on it.
 
 **`async MagicJSON.write(value: any, filepath?: string): Promise<void>`**
@@ -52,6 +52,10 @@ MagicJSON can be used as a drop-in replacement for the JavaScript [JSON](https:/
 
 **`MagicJSON.isManaged(value: any): boolean`**
 - Deprecated. Use `MagicJSON.isMagic(value)` instead.
+
+
+## Changelog
+See [releases](https://github.com/Septh/magic-json/releases).
 
 
 ## License

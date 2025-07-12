@@ -1,5 +1,6 @@
 import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
+import path from 'node:path'
 import json, { type Metadata } from './magic-json.js'
 
 type IndentationPattern = [ indent: string, description: string, eol: string ]
@@ -139,5 +140,14 @@ describe('Line endings', () => {
         ]
         const { meta } = parse(toJson(indents, '\r\n'))
         assert.equal(meta.useCRLF, true)
+    })
+})
+
+describe('metadata', () => {
+
+    test('Stores resolved path to file', async () => {
+        const obj = await json.fromFile('./package.json')
+        const meta = json['getMetadata'](obj)
+        assert(meta?.filepath === path.resolve('./package.json'))
     })
 })

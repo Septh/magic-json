@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
 import { deprecate } from 'node:util'
 
@@ -42,7 +43,7 @@ export default abstract class MagicJSON {
         const json = this.parse(text)
         const meta = this.#metas.get(json)
         if (meta)
-            meta.filepath = filepath
+            meta.filepath = path.resolve(filepath)
         return json
     }
 
